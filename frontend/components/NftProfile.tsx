@@ -36,6 +36,10 @@ function NftProfile() {
   const [isUserIdEditable, setIsUserIdEditable] = useState(
     profile.userId ? false : true
   );
+  const [imagePrompt, setImagePrompt] = useState("");
+  const [isAIImageCreation, setIsAIImageCreation] = useState(false);
+  const [generatedImageUrl, setGeneratedImageUrl] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     loadMyNfts();
@@ -138,13 +142,38 @@ function NftProfile() {
     setIsMinting(false);
   };
 
+  const generateAIImage = async () => {
+    if (!imagePrompt) return;
+    
+    setIsGenerating(true);
+    try {
+      const response = await axios.get(
+        `https://honoimagegenerator.yashj8858.workers.dev/`,
+        {
+          params: { prompt: imagePrompt },
+          responseType: "blob",
+        }
+      );
+
+      const imageBlob = response.data;
+      const newImageUrl = URL.createObjectURL(imageBlob);
+      setImageUrl(newImageUrl);
+      setTempImg(imageBlob); // Set the generated image as the tempImg for minting
+    } catch (error) {
+      console.error("Error generating image:", error);
+      toast("Failed to generate image", { type: "error" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const onImgChange = async (event: any) => {
     event.preventDefault();
     let file = event.target.files[0];
     setTempImg(file);
     if (file) {
-      let imageUrl = URL.createObjectURL(file);
-      setImageUrl(imageUrl);
+      let newImageUrl = URL.createObjectURL(file);
+      setImageUrl(newImageUrl);
     }
   };
 
@@ -187,12 +216,48 @@ function NftProfile() {
         <div className=" flex flex-row">
           <div className=" flex flex-col gap-3 ">
             <h1>NftProfile</h1>
-            <input
-              className=""
-              onChange={onImgChange}
-              type="file"
-              accept="image/*"
-            ></input>
+            <div className="flex items-center gap-2 mb-2">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  checked={isAIImageCreation}
+                  onChange={() => setIsAIImageCreation(!isAIImageCreation)}
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                <span className="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300">AI image creation</span>
+              </label>
+            </div>
+            {!isAIImageCreation && (
+              <input
+                className=""
+                onChange={onImgChange}
+                type="file"
+                accept="image/*"
+              ></input>
+            )}
+            {isAIImageCreation && (
+              <>
+                <input
+                  className=" rounded-md border-2 p-1 outline-none dark:bg-black "
+                  type="text"
+                  placeholder="Enter a prompt to generate an image"
+                  value={imagePrompt}
+                  onChange={(e) => setImagePrompt(e.target.value)}
+                ></input>
+                <button
+                  onClick={generateAIImage}
+                  disabled={!imagePrompt || isGenerating}
+                  className={`rounded-md px-4 py-2 ${
+                    !imagePrompt || isGenerating
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-blue-500 hover:bg-blue-600"
+                  } text-white`}
+                >
+                  {isGenerating ? "Generating..." : "Generate Image"}
+                </button>
+              </>
+            )}
             <input
               className=" rounded-md border-2 p-1 outline-none dark:bg-black "
               type="text"
@@ -200,6 +265,7 @@ function NftProfile() {
               value={nftName}
               onChange={(e) => setNftName(e.target.value)}
             ></input>
+            
             <div className=" flex items-center gap-5 ">
               <input
                 className={` rounded-md border-2 p-1 w-max outline-none dark:bg-black ${!isUserIdEditable && " cursor-not-allowed opacity-30"} `}
